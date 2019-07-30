@@ -1,5 +1,7 @@
-from flask import session, request
+import os
+from flask import session, request, current_app, redirect, url_for, send_from_directory
 from flask_login import login_required, current_user
+from werkzeug.utils import secure_filename
 from . import main
 from .. import db
 from ..models import User, Role
@@ -47,3 +49,35 @@ def edit_profile_admin(id):
         'message': '{} successfully updated.'
         .format(user.name)
     }
+
+
+def allowed_file(filename):
+    return '.' in filename and \
+        filename.rsplit('.', 1)[1].lower() in \
+        current_app.config['ALLOWED_EXTENSIONS']
+
+
+@main.route('/upload', methods=['GET', 'POST'])
+def upload_file():
+    if request.method == 'POST':
+        # check if the post request has the file part
+        if 'file' not in request.files:
+            # TODO(max): set failed status code
+            return {'error': 'No file Part'}
+        file = request.files['file']
+        # if user does not select file, browser also
+        # submits an empty part without filename
+        if file.filename == '':
+            return {'error': 'No selected file'}
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            file.save(os.path.join(
+                current_app.config['UPLOAD_FOLDER'], filename))
+            return redirect(url_for('main.uploaded_file', filename=filename))
+
+
+@main.route('/uploads/<filename>', methods=['GET'])
+def uploaded_file(filename):
+    # TODO(max): rewrite relative path correctly with os.path.join
+    return send_from_directory('../' + current_app.config['UPLOAD_FOLDER'],
+                               filename)
