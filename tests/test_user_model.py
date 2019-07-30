@@ -69,3 +69,8 @@ class UserModelTestCase(unittest.TestCase):
         self.assertFalse(u.can(Permission.WRITE))
         self.assertFalse(u.can(Permission.MODERATE))
         self.assertFalse(u.can(Permission.ADMIN))
+
+    # TODO(max): How do we test routes? Integration tests?
+    def test_admin_edit_profile(self):
+        r = Role.query.filter_by(name='Administrator').first()
+        u = User(email='john@example.com', password='cat', role=r)
