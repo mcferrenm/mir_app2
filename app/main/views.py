@@ -1,10 +1,11 @@
 import os
-from flask import session, request, current_app, redirect, url_for, send_from_directory
+from flask import session, request, current_app, \
+    redirect, url_for, send_from_directory, jsonify
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from . import main
 from .. import db
-from ..models import User, Role
+from ..models import User, Role, Permission, Post
 from ..decorators import admin_required
 
 
@@ -81,3 +82,25 @@ def uploaded_file(filename):
     # TODO(max): rewrite relative path correctly with os.path.join
     return send_from_directory('../' + current_app.config['UPLOAD_FOLDER'],
                                filename)
+
+
+@main.route('/posts', methods=['POST'])
+def add_post():
+    json_req = request.get_json()
+    # TODO(max): How do we validate request body? and json req?
+    if current_user.can(Permission.WRITE):
+        post = Post(body=json_req['body_text'],
+                    # TODO(max): How is author ok? Why not author_id?
+                    author=current_user._get_current_object())
+        db.session.add(post)
+        db.session.commit()
+        return {"message": "Post by {} created successfully.".format(post.author.name)}
+    return {"error": "Not permitted."}
+
+
+@main.route('/posts', methods=['GET'])
+def get_posts():
+    posts = Post.query.order_by(Post.timestamp.desc()).all()
+
+    return jsonify([{"body_text": post.body, 
+                     "author": post.author.name} for post in posts])
