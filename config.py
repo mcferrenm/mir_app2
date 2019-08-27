@@ -9,6 +9,7 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     UPLOAD_FOLDER = 'uploads'
     ALLOWED_EXTENSIONS = {'mp3', 'wav', 'py'}
+    POSTS_PER_PAGE = 5
 
     @staticmethod
     def init_app(app):

@@ -12,7 +12,10 @@ from ..decorators import admin_required
 @main.route('/user/<username>')
 def user(username):
     user = User.query.filter_by(username=username).first_or_404()
-    return '<h1>Ayyy !{}</h1>'.format(user.username)
+    if user is None:
+        abort(404)
+    posts = user.posts.order_by(Post.timestamp.desc()).all()
+    return jsonify({"posts": [{"body_text": post.body} for post in posts], "username": user.username, })
 
 
 @main.route('/edit-profile', methods=['POST'])
@@ -100,7 +103,11 @@ def add_post():
 
 @main.route('/posts', methods=['GET'])
 def get_posts():
-    posts = Post.query.order_by(Post.timestamp.desc()).all()
-
+    page = request.args.get('page', 1, type=int)
+    pagination = Post.query.order_by(Post.timestamp.desc()).paginate(
+        page, per_page=current_app.config['POSTS_PER_PAGE'],
+        error_out=False
+    )
+    posts = pagination.items
     return jsonify([{"body_text": post.body,
                      "author": post.author.name} for post in posts])
