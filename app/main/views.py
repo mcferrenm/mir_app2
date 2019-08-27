@@ -12,7 +12,10 @@ from ..decorators import admin_required
 @main.route('/user/<username>')
 def user(username):
     user = User.query.filter_by(username=username).first_or_404()
-    return '<h1>Ayyy !{}</h1>'.format(user.username)
+    if user is None:
+        abort(404)
+    posts = user.posts.order_by(Post.timestamp.desc()).all()
+    return jsonify({"posts": [{"body_text": post.body} for post in posts], "username": user.username, })
 
 
 @main.route('/edit-profile', methods=['POST'])
