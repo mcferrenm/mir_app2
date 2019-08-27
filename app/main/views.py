@@ -103,7 +103,11 @@ def add_post():
 
 @main.route('/posts', methods=['GET'])
 def get_posts():
-    posts = Post.query.order_by(Post.timestamp.desc()).all()
-
+    page = request.args.get('page', 1, type=int)
+    pagination = Post.query.order_by(Post.timestamp.desc()).paginate(
+        page, per_page=current_app.config['POSTS_PER_PAGE'],
+        error_out=False
+    )
+    posts = pagination.items
     return jsonify([{"body_text": post.body,
                      "author": post.author.name} for post in posts])
