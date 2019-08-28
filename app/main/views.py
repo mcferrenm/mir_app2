@@ -111,3 +111,10 @@ def get_posts():
     posts = pagination.items
     return jsonify([{"body_text": post.body,
                      "author": post.author.name} for post in posts])
+
+
+@main.route('/post/<int:id>')
+def post(id):
+    post = Post.query.get_or_404(id)
+    # TODO(max): add to_json method to Post Model
+    return {"body_text": post.body, "author": post.author.name, "id": post.id}
