@@ -7,3 +7,5 @@ __pycache__
 *.sqlite
 
 /uploads/*
+
+.DS_Store
