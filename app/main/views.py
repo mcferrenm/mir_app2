@@ -1,6 +1,6 @@
 import os
 from flask import session, request, current_app, \
-    redirect, url_for, send_from_directory, jsonify
+    redirect, url_for, send_from_directory, jsonify, abort
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from . import main
@@ -104,10 +104,33 @@ def add_post():
 @main.route('/posts', methods=['GET'])
 def get_posts():
     page = request.args.get('page', 1, type=int)
-    pagination = Post.query.order_by(Post.timestamp.desc()).paginate(
+    pagination = Post.query.order_by(Post.id.desc()).paginate(
         page, per_page=current_app.config['POSTS_PER_PAGE'],
         error_out=False
     )
     posts = pagination.items
     return jsonify([{"body_text": post.body,
+                     "id": post.id,
                      "author": post.author.name} for post in posts])
+
+
+@main.route('/post/<int:id>')
+def post(id):
+    post = Post.query.get_or_404(id)
+    # TODO(max): add to_json method to Post Model
+    return {"body_text": post.body, "author": post.author.name, "id": post.id}
+
+
+@main.route('/edit/<int:id>', methods=['POST'])
+@login_required
+def edit(id):
+    post = Post.query.get_or_404(id)
+    if current_user != post.author and \
+            not current_user.can(Permission.ADMIN):
+        abort(403)
+    json_req = request.get_json()
+    print(json_req)
+    post.body = json_req["body_text"]
+    db.session.add(post)
+    db.session.commit()
+    return {"body_text": post.body, "author": post.author.name, "id": post.id}
