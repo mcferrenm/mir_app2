@@ -6,7 +6,7 @@ from werkzeug.utils import secure_filename
 from . import main
 from .. import db
 from ..models import User, Role, Permission, Post
-from ..decorators import admin_required
+from ..decorators import admin_required, permission_required
 
 
 @main.route('/user/<username>')
@@ -111,6 +111,7 @@ def get_posts():
     posts = pagination.items
     return jsonify([{"body_text": post.body,
                      "id": post.id,
+                     "username": post.author.username,
                      "author": post.author.name} for post in posts])
 
 
@@ -134,3 +135,17 @@ def edit(id):
     db.session.add(post)
     db.session.commit()
     return {"body_text": post.body, "author": post.author.name, "id": post.id}
+
+
+@main.route('/follow/<username>')
+@login_required
+@permission_required(Permission.FOLLOW)
+def follow(username):
+    user = User.query.filter_by(username=username).first()
+    if user is None:
+        return {"error": "Invalid user"}
+    if current_user.is_following(user):
+        return {"message": "Already following user."}
+    current_user.follow(user)
+    db.session.commit()
+    return {"message": "You are now following {}".format(user.username)}
