@@ -9,3 +9,5 @@ __pycache__
 /uploads/*
 
 .DS_Store
+
+todo.txt

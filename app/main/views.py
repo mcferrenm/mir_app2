@@ -1,6 +1,6 @@
 import os
 from flask import session, request, current_app, \
-    redirect, url_for, send_from_directory, jsonify, abort
+    redirect, url_for, send_from_directory, jsonify, abort, make_response
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from . import main
@@ -103,8 +103,15 @@ def add_post():
 
 @main.route('/posts', methods=['GET'])
 def get_posts():
+    show_followed = False
+    if current_user.is_authenticated:
+        show_followed = bool(request.cookies.get('show_followed', ''))
+    if show_followed:
+        query = current_user.followed_posts
+    else:
+        query = Post.query
     page = request.args.get('page', 1, type=int)
-    pagination = Post.query.order_by(Post.id.desc()).paginate(
+    pagination = query.order_by(Post.timestamp.desc()).paginate(
         page, per_page=current_app.config['POSTS_PER_PAGE'],
         error_out=False
     )
@@ -120,6 +127,22 @@ def post(id):
     post = Post.query.get_or_404(id)
     # TODO(max): add to_json method to Post Model
     return {"body_text": post.body, "author": post.author.name, "id": post.id}
+
+# NOTE(Max): How does this fit into a REST API model?
+@main.route('/all')
+@login_required
+def show_all():
+    resp = make_response()
+    resp.set_cookie('show_followed', '', max_age=30*24*60*60)  # 30 days
+    return resp
+
+
+@main.route('/followed')
+@login_required
+def show_followed():
+    resp = make_response()
+    resp.set_cookie('show_followed', '1', max_age=30*24*60*60)  # 30 days
+    return resp
 
 
 @main.route('/edit/<int:id>', methods=['POST'])
