@@ -5,7 +5,7 @@ from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from . import main
 from .. import db
-from ..models import User, Role, Permission, Post
+from ..models import User, Role, Permission, Post, Comment
 from ..decorators import admin_required, permission_required
 
 
@@ -126,7 +126,38 @@ def get_posts():
 def post(id):
     post = Post.query.get_or_404(id)
     # TODO(max): add to_json method to Post Model
-    return {"body_text": post.body, "author": post.author.name, "id": post.id}
+    page = request.args.get('page', 1, type=int)
+    if page == -1:
+        page = (post.comments.count() - 1) // \
+            current_app.config['COMMENTS_PER_PAGE'] + 1
+    pagination = post.comments.order_by(Comment.timestamp.asc()).paginate(
+        page, per_page=current_app.config['COMMENTS_PER_PAGE'],
+        error_out=False)
+    comments = pagination.items
+    # TODO(max): Can you shadow variables in Python? Is that idiomatic?
+    json_comments = [{"body_text": comment.body,
+                      "id": comment.id,
+                      "post_id": comment.post_id,
+                      "username": comment.author.username,
+                      "disabled": comment.disabled,
+                      "author_id": comment.author.id} for comment in comments]
+    return {"body_text": post.body, "author": post.author.name, "id": post.id, "comments": json_comments}
+
+# TODO(max): should this and many others be using login_required or other decorators?
+@main.route('/post/<int:id>/add-comment', methods=['POST'])
+def add_comment(id):
+    if current_user.can(Permission.WRITE):
+        json_req = request.get_json()
+        if 'body_text' not in json_req:
+            return {"error": "Post must include body_text field."}
+        post = Post.query.get_or_404(id)
+        comment = Comment(
+            body=json_req['body_text'], post=post, disabled=json_req['disabled'],
+            author=current_user._get_current_object())
+        db.session.add(comment)
+        db.session.commit()
+        return {"message": "Post by {} created successfully.".format(comment.author.name)}
+    return {"error": "Not permitted."}
 
 # NOTE(Max): How does this fit into a REST API model?
 @main.route('/all')
